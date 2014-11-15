@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 import bencode
 import cPickle as pickle
 import glob
@@ -12,122 +13,126 @@ import subprocess
 import sys
 import whatapi
 
-# Load Config
-config = json.loads(open('config.json').read())
 
-for f in os.listdir(config['torrent_path']):
-  t = f.split('.torrent')[0]
-  try:
-    matches = re.match('(.*) - (.*) - (\d\d\d\d) (.*)', t)
+class Shelver:
+  def __init__(self):
+    self.config = json.loads(open('config.json').read())
 
-    # Artist
-    artist = matches.group(1)
+  def torrents(self):
+    for f in os.listdir(self.config['torrent_path']):
+      t = f.split('.torrent')[0]
+      try:
+        matches = re.match('(.*) - (.*) - (\d\d\d\d) (.*)', t)
 
-    # Title
-    title = matches.group(2)
+        # Artist
+        artist = matches.group(1)
 
-    # Year
-    year = matches.group(3)
+        # Title
+        title = matches.group(2)
 
-    # Format
-    extra = matches.group(4)
+        # Year
+        year = matches.group(3)
 
-    # Get Folder
-    torrent = bencode.bdecode(open('%s/%s' % (config['torrent_path'], f)).read())
-    dl = '%s/%s' % (config['dl_path'], torrent['info']['name'])
+        # Format
+        extra = matches.group(4)
 
-    # Doesn't exist - well we're not moving it then
-    if not os.path.exists(dl):
-      print 'MISSING: %s' % t
-      continue
+        # Get Folder
+        torrent = bencode.bdecode(open('%s/%s' % (self.config['torrent_path'], f)).read())
+        dl = '%s/%s' % (self.config['dl_path'], torrent['info']['name'])
 
-    # Skip if is symlink (moved already)
-    if os.path.islink(dl):
-      # print 'SYMLINK: %s' % torrent['info']['name']
-      continue
+        # Doesn't exist - well we're not moving it then
+        if not os.path.exists(dl):
+          print 'MISSING: %s' % t
+          continue
 
-    if os.path.isdir(dl):
-      print 'TORRENT: %s' % t
-      print 'FOLDER : %s' % torrent['info']['name']
+        # Skip if is symlink (moved already)
+        if os.path.islink(dl):
+          # print 'SYMLINK: %s' % torrent['info']['name']
+          continue
 
-      # Prefill
-      def hook_artist():
-        readline.insert_text(artist.encode('utf8'))
-        readline.redisplay()
-      readline.set_pre_input_hook(hook_artist)
-      artist = raw_input('artist > ')
+        if os.path.isdir(dl):
+          print 'TORRENT: %s' % t
+          print 'FOLDER : %s' % torrent['info']['name']
 
-      def hook_year():
-        readline.insert_text(year)
-        readline.redisplay()
-      readline.set_pre_input_hook(hook_year)
-      year = raw_input('year   > ')
+          # Prefill
+          def hook_artist():
+            readline.insert_text(artist.encode('utf8'))
+            readline.redisplay()
+          readline.set_pre_input_hook(hook_artist)
+          artist = raw_input('artist > ')
 
-      def hook_title():
-        readline.insert_text(title.encode('utf8'))
-        readline.redisplay()
-      readline.set_pre_input_hook(hook_title)
-      title = raw_input('title  > ')
+          def hook_year():
+            readline.insert_text(year)
+            readline.redisplay()
+          readline.set_pre_input_hook(hook_year)
+          year = raw_input('year   > ')
 
-      def hook():
-        readline.insert_text('%s - %s - %s' % (artist, year, title))
-        readline.redisplay()
-      readline.set_pre_input_hook(hook)
-      result = raw_input('[btmv] > ')
+          def hook_title():
+            readline.insert_text(title.encode('utf8'))
+            readline.redisplay()
+          readline.set_pre_input_hook(hook_title)
+          title = raw_input('title  > ')
 
-      if result:
-        subprocess.call(['btmv',
-                         dl,
-                         result
-                       ])
-      print
+          def hook():
+            readline.insert_text('%s - %s - %s' % (artist, year, title))
+            readline.redisplay()
+          readline.set_pre_input_hook(hook)
+          result = raw_input('[btmv] > ')
 
-
-    if os.path.isfile(dl):
-      print 'TORRENT: %s' % t
-      print 'FILE   : %s' % torrent['info']['name']
-
-      # Prefill
-      def hook():
-        readline.insert_text(torrent['info']['name'])
-        readline.redisplay()
-      readline.set_pre_input_hook(hook)
-
-      result = raw_input('[btmv] > ')
-
-      if result:
-        subprocess.call(['btmv',
-                         dl,
-                         '_misc/%s' % result
-                       ])
-      print
+          if result:
+            subprocess.call(['btmv',
+                             dl,
+                             result
+                           ])
+          print
 
 
-  except (KeyboardInterrupt, SystemExit):
-    sys.exit()
+        if os.path.isfile(dl):
+          print 'TORRENT: %s' % t
+          print 'FILE   : %s' % torrent['info']['name']
 
-  except:
-    # not music
-    pass
+          # Prefill
+          def hook():
+            readline.insert_text(torrent['info']['name'])
+            readline.redisplay()
+          readline.set_pre_input_hook(hook)
+
+          result = raw_input('[btmv] > ')
+
+          if result:
+            subprocess.call(['btmv',
+                             dl,
+                             '_misc/%s' % result
+                           ])
+          print
+
+
+      except (KeyboardInterrupt, SystemExit):
+        sys.exit()
+
+      except:
+        # not music
+        pass
   
+  def whatlogin(self):
+    try:
+      cookies = pickle.load(open('cookies.dat', 'rb'))
+      what = whatapi.WhatAPI(username=self.config['user'], password=self.config['password'], cookies=cookies)
+    except:
+      what = whatapi.WhatAPI(username=self.config['user'], password=self.config['password'])
 
-  '''
-  # Unfortunately torrent does not have torrent id
-  torrent = bencode.bdecode(open(f).read())
-  print f
-  pprint(torrent)
-  '''
+    # Logged In
+    pickle.dump(what.session.cookies, open('cookies.dat', 'wb'))
 
-sys.exit()
-
-# Login
-try:
-  cookies = pickle.load(open('cookies.dat', 'rb'))
-  what = whatapi.WhatAPI(username=config['user'], password=config['password'], cookies=cookies)
-except:
-  what = whatapi.WhatAPI(username=config['user'], password=config['password'])
-
-# Logged In
-pickle.dump(what.session.cookies, open('cookies.dat', 'wb'))
+    '''
+    # Unfortunately torrent does not have torrent id
+    torrent = bencode.bdecode(open(f).read())
+    print f
+    pprint(torrent)
+    '''
 
 
+if __name__ == '__main__':
+  shelve = Shelver() 
+
+  shelve.torrents()
