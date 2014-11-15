@@ -52,7 +52,7 @@ for f in os.listdir(config['torrent_path']):
 
       # Prefill
       def hook_artist():
-        readline.insert_text(artist)
+        readline.insert_text(artist.encode('utf8'))
         readline.redisplay()
       readline.set_pre_input_hook(hook_artist)
       artist = raw_input('artist > ')
@@ -64,7 +64,7 @@ for f in os.listdir(config['torrent_path']):
       year = raw_input('year   > ')
 
       def hook_title():
-        readline.insert_text(title)
+        readline.insert_text(title.encode('utf8'))
         readline.redisplay()
       readline.set_pre_input_hook(hook_title)
       title = raw_input('title  > ')
