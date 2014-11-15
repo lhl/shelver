@@ -1,3 +1,10 @@
+# Password and stuff
+config.json
+cookies.dat
+
+# Temp files
+*.swp
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
