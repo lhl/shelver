@@ -1,6 +1,20 @@
 #!/usr/bin/env python
 
 
+# ptk
+from __future__ import unicode_literals
+
+from prompt_toolkit import CommandLineInterface
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.line import Line
+from prompt_toolkit.layout import Layout
+from prompt_toolkit.layout.prompt import DefaultPrompt
+from prompt_toolkit.layout.menus import CompletionsMenu
+
+from pygments.token import Token
+from pygments.style import Style
+
+
 import bencode
 import cPickle as pickle
 import eyed3
@@ -14,9 +28,13 @@ import subprocess
 import sys
 import whatapi
 
+
 # UTF-8 Hack
 reload(sys)
 sys.setdefaultencoding("utf-8")
+
+
+terms = []
 
 class Shelver:
   def __init__(self):
@@ -27,6 +45,8 @@ class Shelver:
 
 
   def folders(self):
+    global terms
+
     for f in os.listdir(os.getcwd()):
       original = '%s/%s' % (os.getcwd(), f)
 
@@ -86,62 +106,38 @@ class Shelver:
       years.extend(re.findall(r'\b\d\d\d\d\b', f))
 
       ### UI
-      readline.parse_and_bind("tab: complete")
+      cli = CommandLineInterface(style=shelverStyle,
+                                 layout=Layout(before_input=DefaultPrompt('> '),
+                                               menus=[CompletionsMenu()]),
+                                 line=Line(completer=shelverCompleter()),
+                                 create_async_autocompleters=True,
+                                )
 
       print 'FOLDER : %s' % f
 
       # Prefill
-      def artist_display():
-        if artists:
-          readline.insert_text(artists[0].encode('utf8'))
-          readline.redisplay()
-      def artist_completer(text, state):
-        options = [x for x in (artists + parts) if x.startswith(text)]
-        try:
-          return options[state]
-        except IndexError:
-          return None
-      readline.set_pre_input_hook(artist_display)
-      readline.set_completer(artist_completer)
-      artist = raw_input('artist > ')
+      cli.layout.before_input = DefaultPrompt('artist > ')
+      terms = artists + parts
+      artist = cli.read_input()
+      artist = artist.text
       if not artist:
         print "Skipping..."
         print
         continue 
 
-      def year_display():
-        if years:
-          readline.insert_text(years[0])
-          readline.redisplay()
-      def year_completer(text, state):
-        options = [x for x in (years) if x.startswith(text)]
-        try:
-          return options[state]
-        except IndexError:
-          return None
-      readline.set_pre_input_hook(year_display)
-      readline.set_completer(year_completer)
-      readline.parse_and_bind("tab: complete")
-      year = raw_input('year   > ')
+      cli.layout.before_input = DefaultPrompt('year   > ')
+      terms = years
+      year = cli.read_input()
+      year = year.text
       if not year:
         print "Skipping..."
         print
         continue 
 
-      def album_display():
-        if albums:
-          readline.insert_text(albums[0].encode('utf8'))
-          readline.redisplay()
-      def album_completer(text, state):
-        options = [x for x in (albums + parts) if x.startswith(text)]
-        try:
-          return options[state]
-        except IndexError:
-          return None
-      readline.set_pre_input_hook(album_display)
-      readline.set_completer(album_completer)
-      readline.parse_and_bind("tab: complete")
-      album = raw_input('album  > ')
+      cli.layout.before_input = DefaultPrompt('album  > ')
+      terms = albums + parts
+      album = cli.read_input()
+      album = album.text
       if not album:
         print "Skipping..."
         print
@@ -283,6 +279,23 @@ class Shelver:
     print f
     pprint(torrent)
     '''
+
+
+class shelverCompleter(Completer):
+  def get_completions(self, document):
+    global terms
+    word_before_cursor = document.get_word_before_cursor()
+    for a in terms:
+      if a.startswith(word_before_cursor):
+        yield Completion(a, -len(word_before_cursor))
+
+
+class shelverStyle(Style):
+  styles = { Token.Menu.Completions.Completion.Current: 'bg:#00aaaa #000000',
+             Token.Menu.Completions.Completion:         'bg:#008888 #ffffff',
+             Token.Menu.Completions.ProgressButton:     'bg:#003333',
+             Token.Menu.Completions.ProgressBar:        'bg:#00aaaa',
+           }
 
 
 if __name__ == '__main__':
